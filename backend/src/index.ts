@@ -8,7 +8,7 @@ import connectDB from "./database/db";
 import { errorHandler } from "./middlewares/errorHandler";
 import { HTTPSTATUS } from "./config/http.config";
 import { asyncHandler } from "./middlewares/asyncHandler";
-import { BadRequestException } from "./common/utils/catch-errors";
+import authRoutes from "./modules/auth/auth.routes";
 
 const app = express();
 const BASE_PATH = config.BASE_PATH;
@@ -26,13 +26,13 @@ app.use(cookieParser());
 app.get(
   "/",
   asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
-    throw new BadRequestException("This is an Testing bad request");
-
     res.status(HTTPSTATUS.OK).json({
       message: "Working!",
     });
   })
 );
+
+app.use(`${BASE_PATH}/auth`, authRoutes);
 
 app.use(errorHandler);
 
