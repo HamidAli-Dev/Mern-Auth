@@ -2,7 +2,11 @@ import jwt, { Secret, SignOptions } from "jsonwebtoken";
 
 import { ErrorCode } from "../../common/enums/error-code.enum";
 import { VerificationEnum } from "../../common/enums/verification-code.enum";
-import { LoginDto, RegisterDto } from "../../common/interface/auth.interface";
+import {
+  LoginDto,
+  RegisterDto,
+  resetPasswordDto,
+} from "../../common/interface/auth.interface";
 import {
   BadRequestException,
   HttpException,
@@ -33,6 +37,7 @@ import {
   verifyEmailTemplate,
 } from "../../mails/templates/template";
 import { HTTPSTATUS } from "../../config/http.config";
+import { hashValue } from "../../common/utils/bcrypt";
 
 export class AuthService {
   public async register(registerData: RegisterDto) {
@@ -265,6 +270,38 @@ export class AuthService {
     return {
       url: resetLink,
       emailId: data.id,
+    };
+  }
+
+  public async resePassword({ password, verificationCode }: resetPasswordDto) {
+    const validCode = await VerificationCodeModel.findOne({
+      code: verificationCode,
+      type: VerificationEnum.PASSWORD_RESET,
+      expiresAt: { $gt: new Date() },
+    });
+
+    if (!validCode) {
+      throw new NotFoundException("Invalid or expired verification code");
+    }
+
+    const hashedPassword = await hashValue(password);
+
+    const updatedUser = await UserModel.findByIdAndUpdate(validCode.userId, {
+      password: hashedPassword,
+    });
+
+    if (!updatedUser) {
+      throw new BadRequestException("Failed to reset password!");
+    }
+
+    await validCode.deleteOne();
+
+    await SessionModel.deleteMany({
+      userId: updatedUser._id,
+    });
+
+    return {
+      user: updatedUser,
     };
   }
 }

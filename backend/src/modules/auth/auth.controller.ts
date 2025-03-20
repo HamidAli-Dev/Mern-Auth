@@ -7,9 +7,11 @@ import {
   emailSchema,
   loginSchema,
   registerSchema,
+  resetPasswordSchema,
   verificationEmailSchema,
 } from "../../common/validators/auth.validator";
 import {
+  clearAuthenticationCookies,
   getAccessTokenCookieOptions,
   getRefreshTokenCookieOptions,
   setAuthenticationCookies,
@@ -114,6 +116,19 @@ export class AuthController {
 
       return res.status(HTTPSTATUS.OK).json({
         message: "Password reset email sent",
+      });
+    }
+  );
+
+  public resetPassword = asyncHandler(
+    async (req: Request, res: Response): Promise<any> => {
+      const body = resetPasswordSchema.parse(req.body);
+
+      await this.authService.resePassword(body);
+
+      // This will clear the authentication cookies
+      return clearAuthenticationCookies(res).status(HTTPSTATUS.OK).json({
+        message: "Reset Password successfully",
       });
     }
   );
