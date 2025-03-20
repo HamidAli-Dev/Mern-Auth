@@ -5,12 +5,17 @@ import { VerificationEnum } from "../../common/enums/verification-code.enum";
 import { LoginDto, RegisterDto } from "../../common/interface/auth.interface";
 import {
   BadRequestException,
+  HttpException,
+  InternalServerException,
+  NotFoundException,
   UnauthorizedException,
 } from "../../common/utils/catch-errors";
 import {
+  anHourFromNow,
   calculateExpirationDate,
   fortyFiveMinutesFromNow,
   ONE_DAY_IN_MS,
+  threeMinutesAgo,
 } from "../../common/utils/date-time";
 import SessionModel from "../../database/models/session.model";
 import UserModel from "../../database/models/user.model";
@@ -23,7 +28,11 @@ import {
   verifyJwtToken,
 } from "../../common/utils/jwt";
 import { sendEmail } from "../../mails/mailer";
-import { verifyEmailTemplate } from "../../mails/templates/template";
+import {
+  passwordResetTemplate,
+  verifyEmailTemplate,
+} from "../../mails/templates/template";
+import { HTTPSTATUS } from "../../config/http.config";
 
 export class AuthService {
   public async register(registerData: RegisterDto) {
@@ -203,6 +212,59 @@ export class AuthService {
     await validCode.deleteOne();
     return {
       user: updatedUser,
+    };
+  }
+
+  public async forgotPassword(email: string) {
+    const user = await UserModel.findOne({
+      email: email,
+    });
+
+    if (!user) {
+      throw new NotFoundException("User not found");
+    }
+
+    // Rate-Limit: check mail rate limit is 2 emails per 3 or 10 min
+    const timeAgo = threeMinutesAgo();
+    const maxAttempts = 2;
+
+    const count = await VerificationCodeModel.countDocuments({
+      userId: user._id,
+      type: VerificationEnum.PASSWORD_RESET,
+      createdAt: { $gt: timeAgo },
+    });
+
+    if (count >= maxAttempts) {
+      throw new HttpException(
+        "Too many request, try again later",
+        HTTPSTATUS.TOO_MANY_REQUESTS,
+        ErrorCode.TOO_MANY_REQUESTS
+      );
+    }
+
+    const expiresAt = anHourFromNow();
+    const validCode = await VerificationCodeModel.create({
+      userId: user._id,
+      type: VerificationEnum.PASSWORD_RESET,
+      expiresAt,
+    });
+
+    const resetLink = `${config.APP_ORIGIN}/reset-password?code=${
+      validCode.code
+    }&exp=${expiresAt.getTime()}`;
+
+    const { data, error } = await sendEmail({
+      to: user.email,
+      ...passwordResetTemplate(resetLink),
+    });
+
+    if (!data?.id) {
+      throw new InternalServerException(`${error?.name} ${error?.message}`);
+    }
+
+    return {
+      url: resetLink,
+      emailId: data.id,
     };
   }
 }
