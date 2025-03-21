@@ -1,5 +1,3 @@
-import jwt, { Secret, SignOptions } from "jsonwebtoken";
-
 import { ErrorCode } from "../../common/enums/error-code.enum";
 import { VerificationEnum } from "../../common/enums/verification-code.enum";
 import {
@@ -303,5 +301,9 @@ export class AuthService {
     return {
       user: updatedUser,
     };
+  }
+
+  public async logout(sessionId: string) {
+    return await SessionModel.findByIdAndDelete(sessionId);
   }
 }
