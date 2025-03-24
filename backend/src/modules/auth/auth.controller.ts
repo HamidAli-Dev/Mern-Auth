@@ -54,6 +54,15 @@ export class AuthController {
       const { user, accessToken, refreshToken, mfaRequired } =
         await this.authService.login(body);
 
+      // if mfaRequired is true, return the user and the mfaRequired status
+      if (mfaRequired) {
+        return res.status(HTTPSTATUS.OK).json({
+          message: "Verify MFA authentication",
+          mfaRequired,
+          user,
+        });
+      }
+
       if (accessToken && refreshToken) {
         return setAuthenticationCookies({
           res,
@@ -101,6 +110,7 @@ export class AuthController {
     }
   );
 
+  // verifyEmail is a function that verifies the user's email by checking the verification code against the user's email
   public verifyEmail = asyncHandler(
     async (req: Request, res: Response): Promise<any> => {
       const { code } = verificationEmailSchema.parse(req.body);
