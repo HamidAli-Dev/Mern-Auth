@@ -1,30 +1,42 @@
 import { config } from "../config/app.config";
-import { resend } from "./resendClient";
+import { transporter } from "./nodeMailerClient";
 
-type Params = {
+type SendEmailResponse = {
+  data: { id: string } | null;
+  error: Error | null;
+};
+
+type SendEmailParams = {
   to: string | string[];
   subject: string;
   text: string;
   html: string;
   from?: string;
 };
-
-const mailer_sender =
-  config.NODE_ENV === "development"
-    ? `no-reply <onboarding@resend.dev>`
-    : `no-reply <${config.MAILER_SENDER}>`;
-
 export const sendEmail = async ({
   to,
-  from = mailer_sender,
   subject,
   text,
   html,
-}: Params) =>
-  await resend.emails.send({
-    from,
-    to: Array.isArray(to) ? to : [to],
-    text,
-    subject,
-    html,
-  });
+  from = `no-reply <${config.SMTP_MAIL}>`,
+}: SendEmailParams): Promise<SendEmailResponse> => {
+  try {
+    const info = await transporter.sendMail({
+      from,
+      to: Array.isArray(to) ? to.join(",") : to,
+      subject,
+      text,
+      html,
+    });
+
+    return {
+      data: { id: info.messageId },
+      error: null,
+    };
+  } catch (error) {
+    return {
+      data: null,
+      error: error as Error,
+    };
+  }
+};
