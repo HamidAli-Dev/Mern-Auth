@@ -37,6 +37,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import Logo from "@/components/logo";
 import { useAuthContext } from "@/context/auth-provider";
 import { useTheme } from "next-themes";
+import LogoutDialog from "./_common/LogoutDialog";
 
 const Asidebar = () => {
   const { theme, setTheme } = useTheme();
@@ -161,6 +162,8 @@ const Asidebar = () => {
         </SidebarFooter>
         <SidebarRail />
       </Sidebar>
+
+      <LogoutDialog isOpen={isOpen} setIsOpen={setIsOpen} />
     </>
   );
 };
